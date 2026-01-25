@@ -2,6 +2,7 @@ import { useEffect, useRef } from "react";
 
 type HiddenCameraProps = {
   started: boolean;
+  showPreview?: boolean;
   onVideoReady: (videoEl: HTMLVideoElement) => void;
   onError: (msg: string) => void;
 };
@@ -34,11 +35,22 @@ function toFriendlyError(error: unknown): string {
 
 export function HiddenCamera({
   started,
+  showPreview = false,
   onVideoReady,
   onError,
 }: HiddenCameraProps) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const onVideoReadyRef = useRef(onVideoReady);
+  const onErrorRef = useRef(onError);
+
+  useEffect(() => {
+    onVideoReadyRef.current = onVideoReady;
+  }, [onVideoReady]);
+
+  useEffect(() => {
+    onErrorRef.current = onError;
+  }, [onError]);
 
   useEffect(() => {
     let cancelled = false;
@@ -76,14 +88,14 @@ export function HiddenCamera({
           }
 
           if (!cancelled) {
-            onVideoReady(videoEl);
+            onVideoReadyRef.current(videoEl);
           }
         };
 
         videoEl.addEventListener("loadedmetadata", handleLoaded);
       } catch (error) {
         if (!cancelled) {
-          onError(toFriendlyError(error));
+          onErrorRef.current(toFriendlyError(error));
         }
       }
     };
@@ -100,7 +112,7 @@ export function HiddenCamera({
       stopStream(streamRef.current);
       streamRef.current = null;
     };
-  }, [started, onVideoReady, onError]);
+  }, [started]);
 
   return (
     <video
@@ -108,10 +120,15 @@ export function HiddenCamera({
       aria-hidden="true"
       style={{
         position: "fixed",
-        width: "1px",
-        height: "1px",
-        opacity: 0,
+        right: showPreview ? 16 : undefined,
+        bottom: showPreview ? 16 : undefined,
+        width: showPreview ? 220 : "1px",
+        height: showPreview ? "auto" : "1px",
+        opacity: showPreview ? 1 : 0,
         pointerEvents: "none",
+        zIndex: 10,
+        borderRadius: showPreview ? 8 : undefined,
+        boxShadow: showPreview ? "0 2px 8px rgba(0, 0, 0, 0.35)" : undefined,
       }}
     />
   );
