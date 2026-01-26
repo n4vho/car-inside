@@ -21,16 +21,22 @@ export class EmaSmoother {
 
 export class SignalSmoother<T extends NumericSignals> {
   private smoothers: Record<string, EmaSmoother> = {};
+  private alpha: number;
 
-  constructor(private alpha = 0.35) {}
+  constructor(alpha = 0.35) {
+    this.alpha = alpha;
+  }
 
   update(signals: T): T {
-    const output = { ...signals };
-    for (const [key, value] of Object.entries(signals)) {
-      if (!this.smoothers[key]) {
-        this.smoothers[key] = new EmaSmoother(this.alpha);
+    const output = { ...signals } as T;
+    const keys = Object.keys(signals) as Array<keyof T>;
+    for (const key of keys) {
+      const value = signals[key];
+      const keyStr = String(key);
+      if (!this.smoothers[keyStr]) {
+        this.smoothers[keyStr] = new EmaSmoother(this.alpha);
       }
-      output[key] = this.smoothers[key].update(value);
+      (output as NumericSignals)[keyStr] = this.smoothers[keyStr].update(value);
     }
     return output;
   }

@@ -36,7 +36,7 @@ function classifyFromRanges(
   const screamT = min.mouthOpen + mouthRange * 0.7;
   const smileT = min.smile + smileRange * 0.75;
   const smileMouthMax = min.mouthOpen + mouthRange * 0.6;
-  const squintT = min.eyeOpen + eyeRange * 0.25;
+  const squintT = min.eyeOpen + eyeRange * 0.4;
 
   const mouthMargin = mouthRange * 0.08;
   const smileMargin = smileRange * 0.08;
@@ -46,7 +46,7 @@ function classifyFromRanges(
   if (signals.smile > smileT + smileMargin && signals.mouthOpen < smileMouthMax) {
     return "SMILE";
   }
-  if (signals.eyeOpen < squintT - eyeMargin && signals.mouthOpen < smileMouthMax) {
+  if (signals.eyeOpen < squintT - eyeMargin * 0.5 && signals.mouthOpen < smileMouthMax) {
     return "SQUINT";
   }
   return "NEUTRAL";
@@ -125,6 +125,11 @@ function App() {
     maxEyeOpen: null,
     minEyeOpen: null,
   });
+
+  const showHttpWarning =
+    typeof window !== "undefined" &&
+    window.location.protocol === "http:" &&
+    !["localhost", "127.0.0.1"].includes(window.location.hostname);
 
   const currentMemeAsset = useMemo(() => getMeme(selectedKey), [selectedKey]);
 
@@ -507,6 +512,11 @@ function App() {
           />
         </label>
         <div>Status: {status}</div>
+        {showHttpWarning ? (
+          <div style={{ color: "#ffcc66" }}>
+            Camera may be blocked on non-HTTPS (except localhost).
+          </div>
+        ) : null}
         <div>Face: {faceDetected ? "detected" : "none"}</div>
         {videoInfo ? (
           <div>
