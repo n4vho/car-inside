@@ -55,6 +55,7 @@ export function getBlendshapeDebug(
   jawOpen: number;
   mouthFunnel: number;
   mouthSmile: number;
+  mouthUpperUp: number;
   eyeSquint: number;
 } | null {
   if (!categories || categories.length === 0) return null;
@@ -63,6 +64,8 @@ export function getBlendshapeDebug(
   const mouthFunnel = getScore(categories, "mouthFunnel") ?? 0;
   const mouthSmileLeft = getScore(categories, "mouthSmileLeft") ?? 0;
   const mouthSmileRight = getScore(categories, "mouthSmileRight") ?? 0;
+  const mouthUpperUpLeft = getScore(categories, "mouthUpperUpLeft") ?? 0;
+  const mouthUpperUpRight = getScore(categories, "mouthUpperUpRight") ?? 0;
   const eyeSquintLeft = getScore(categories, "eyeSquintLeft") ?? 0;
   const eyeSquintRight = getScore(categories, "eyeSquintRight") ?? 0;
 
@@ -70,6 +73,7 @@ export function getBlendshapeDebug(
     jawOpen,
     mouthFunnel,
     mouthSmile: (mouthSmileLeft + mouthSmileRight) / 2,
+    mouthUpperUp: (mouthUpperUpLeft + mouthUpperUpRight) / 2,
     eyeSquint: (eyeSquintLeft + eyeSquintRight) / 2,
   };
 }

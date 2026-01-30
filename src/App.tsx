@@ -69,6 +69,7 @@ function App() {
     jawOpen: number;
     mouthFunnel: number;
     mouthSmile: number;
+    mouthUpperUp: number;
     eyeSquint: number;
   } | null>(null);
   const [calibrated, setCalibrated] = useState(false);
@@ -99,6 +100,7 @@ function App() {
     );
   };
   const loopStartedRef = useRef(false);
+  const toothySmileRef = useRef(false);
   const calibrationRef = useRef<{
     count: number;
     baseline: ExpressionSignals;
@@ -157,7 +159,24 @@ function App() {
 
   return (
     <>
-      <CatStage asset={currentMemeAsset} />
+      {started ? (
+        <CatStage asset={currentMemeAsset} />
+      ) : (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "#000",
+            color: "#fff",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            fontSize: 18,
+          }}
+        >
+          Press Start to begin
+        </div>
+      )}
 
       <HiddenCamera
         started={started}
@@ -368,9 +387,12 @@ function App() {
                       mouthOpenScream: 0.2,
                       smile: 0.2,
                       mouthOpenSmileMax: 0.25,
-                      eyeOpenSquint: 0.4,
+                      eyeOpenSquint: 0.5,
                     };
                     nextLabel = classifyExpression(smoothSignals, thresholds);
+                    toothySmileRef.current =
+                      (blendDebug?.mouthUpperUp ?? 0) > 0.25 ||
+                      (blendDebug?.jawOpen ?? 0) > 0.15;
                   } else {
                     const extremes = extremesRef.current;
                     if (!extremes.min) extremes.min = { ...smoothSignals };
@@ -404,6 +426,10 @@ function App() {
                       extremes.min,
                       extremes.max
                     );
+                    toothySmileRef.current =
+                      smoothSignals.mouthOpen >
+                      extremes.min.mouthOpen +
+                        (extremes.max.mouthOpen - extremes.min.mouthOpen) * 0.6;
                   }
 
                   if (!useBlendshapes) {
@@ -458,8 +484,14 @@ function App() {
                 }
 
                 const stableLabel = stabilizer.update(nextLabel, now);
-                const nextKey = mapExpressionToMeme(stableLabel);
+                let nextKey = mapExpressionToMeme(stableLabel);
+                if (stableLabel === "SMILE" && toothySmileRef.current) {
+                  nextKey = "grin";
+                }
                 setSelectedKey((prev) => (prev === nextKey ? prev : nextKey));
+                if (debug) {
+                  setExpressionLabel(stableLabel);
+                }
               },
             });
 
@@ -545,6 +577,8 @@ function App() {
             {signals ? ` | source=${signalSource}` : ""}
             {blendshapeDebug
               ? ` | jawOpen=${blendshapeDebug.jawOpen.toFixed(3)} smileRaw=${blendshapeDebug.mouthSmile.toFixed(
+                  3
+                )} upperUp=${blendshapeDebug.mouthUpperUp.toFixed(
                   3
                 )} eyeSquint=${blendshapeDebug.eyeSquint.toFixed(3)}`
               : ""}
