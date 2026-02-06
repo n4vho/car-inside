@@ -473,10 +473,6 @@ function App() {
                   setBlendshapeDebug(blendDebug);
 
                   if (useBlendshapes) {
-                    const tongueScore = blendDebug?.tongueOut ?? 0;
-                    const mouthFunnel = blendDebug?.mouthFunnel ?? 0;
-                    const mouthSmile = blendDebug?.mouthSmile ?? 0;
-                    const jawOpen = blendDebug?.jawOpen ?? 0;
                     const thresholds: ExpressionThresholds = {
                       tongueOut: 0.5,
                       mouthOpenScream: 0.2,
