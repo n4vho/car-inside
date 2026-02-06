@@ -20,6 +20,73 @@ import { LabelStabilizer, SignalSmoother } from "./logic/smoother";
 
 type Status = "Idle" | "Loading" | "Running" | string;
 
+type FaceLandmark = { x: number; y: number };
+
+function getTongueConfidence(
+  video: HTMLVideoElement,
+  landmarks: FaceLandmark[],
+  canvas: HTMLCanvasElement
+): number | null {
+  const mouthLeft = landmarks[61];
+  const mouthRight = landmarks[291];
+  const upperLip = landmarks[13];
+  const lowerLip = landmarks[14];
+  if (!mouthLeft || !mouthRight || !upperLip || !lowerLip) return null;
+
+  const width = video.videoWidth;
+  const height = video.videoHeight;
+  if (!width || !height) return null;
+
+  const left = mouthLeft.x * width;
+  const right = mouthRight.x * width;
+  const top = upperLip.y * height;
+  const bottom = lowerLip.y * height;
+  const mouthWidth = Math.max(right - left, 1);
+  const mouthHeight = Math.max(bottom - top, 1);
+
+  const sampleWidth = Math.max(6, Math.floor(mouthWidth * 0.5));
+  const sampleHeight = Math.max(4, Math.floor(mouthHeight * 0.6));
+  const centerX = (left + right) / 2;
+  const centerY = (top + bottom) / 2 + mouthHeight * 0.1;
+  const sampleX = Math.max(0, Math.floor(centerX - sampleWidth / 2));
+  const sampleY = Math.max(0, Math.floor(centerY - sampleHeight / 2));
+  const clampedWidth = Math.min(sampleWidth, width - sampleX);
+  const clampedHeight = Math.min(sampleHeight, height - sampleY);
+  if (clampedWidth <= 0 || clampedHeight <= 0) return null;
+
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return null;
+  canvas.width = clampedWidth;
+  canvas.height = clampedHeight;
+  ctx.drawImage(
+    video,
+    sampleX,
+    sampleY,
+    clampedWidth,
+    clampedHeight,
+    0,
+    0,
+    clampedWidth,
+    clampedHeight
+  );
+  const data = ctx.getImageData(0, 0, clampedWidth, clampedHeight).data;
+  let redCount = 0;
+  let total = 0;
+  for (let i = 0; i < data.length; i += 4) {
+    const r = data[i];
+    const g = data[i + 1];
+    const b = data[i + 2];
+    total += 1;
+    const redDominant =
+      r > 50 && r > g + 10 && r > b + 10 && r - (g + b) / 2 > 8;
+    if (redDominant) {
+      redCount += 1;
+    }
+  }
+  if (total === 0) return null;
+  return redCount / total;
+}
+
 function classifyFromRanges(
   signals: ExpressionSignals,
   min: ExpressionSignals,
@@ -61,6 +128,8 @@ function App() {
   const [faceDetected, setFaceDetected] = useState(false);
   const [expressionLabel, setExpressionLabel] =
     useState<ExpressionLabel>("NEUTRAL");
+  const [rawExpressionLabel, setRawExpressionLabel] =
+    useState<ExpressionLabel>("NEUTRAL");
   const [signals, setSignals] = useState<ExpressionSignals | null>(null);
   const [signalSource, setSignalSource] = useState<"blendshapes" | "landmarks">(
     "landmarks"
@@ -73,6 +142,7 @@ function App() {
     tongueOut: number;
     eyeSquint: number;
   } | null>(null);
+  const [tongueConfidence, setTongueConfidence] = useState<number | null>(null);
   const [calibrated, setCalibrated] = useState(false);
   const [extremesDump, setExtremesDump] = useState<string>("");
   const [videoInfo, setVideoInfo] = useState<{
@@ -85,6 +155,7 @@ function App() {
   const lastFaceStateRef = useRef(false);
   const FACE_HOLD_MS = 500;
   const videoRef = useRef<HTMLVideoElement | null>(null);
+  const tongueCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const lastVideoTimeRef = useRef<number | null>(null);
   const lastVideoTimeAtRef = useRef<number>(0);
   const landmarkerRef = useRef<FaceLandmarker | null>(null);
@@ -101,6 +172,7 @@ function App() {
     );
   };
   const loopStartedRef = useRef(false);
+  const tongueHoldUntilRef = useRef<number>(0);
   const toothySmileRef = useRef(false);
   const calibrationRef = useRef<{
     count: number;
@@ -316,10 +388,10 @@ function App() {
                 if (!stableDetected) {
                   resetLabelStabilizer();
                   setSelectedKey("neutral");
-                  if (debug) {
-                    setSignals(null);
-                    setExpressionLabel("NEUTRAL");
-                  }
+                  setSignals(null);
+                  setExpressionLabel("NEUTRAL");
+                  setRawExpressionLabel("NEUTRAL");
+                  setTongueConfidence(null);
                   return;
                 }
 
@@ -346,15 +418,15 @@ function App() {
                   if (!rawSignals) {
                     resetLabelStabilizer();
                     setSelectedKey("neutral");
-                    if (debug) {
-                      setSignals(null);
-                      setExpressionLabel("NEUTRAL");
-                      setSignalSource(
-                        result.faceBlendshapes?.[0]?.categories
-                          ? "blendshapes"
-                          : "landmarks"
-                      );
-                    }
+                    setSignals(null);
+                    setExpressionLabel("NEUTRAL");
+                    setRawExpressionLabel("NEUTRAL");
+                    setTongueConfidence(null);
+                    setSignalSource(
+                      result.faceBlendshapes?.[0]?.categories
+                        ? "blendshapes"
+                        : "landmarks"
+                    );
                     return;
                   }
 
@@ -390,13 +462,21 @@ function App() {
                     setCalibrated(true);
                   }
 
-                  if (debug) {
-                    setSignals(smoothSignals);
-                    setSignalSource(useBlendshapes ? "blendshapes" : "landmarks");
-                    setBlendshapeDebug(blendDebug);
-                  }
+                  setSignals(smoothSignals);
+                  setSignalSource(useBlendshapes ? "blendshapes" : "landmarks");
+                  setBlendshapeDebug(blendDebug);
 
                   if (useBlendshapes) {
+                    const tongueScore = blendDebug?.tongueOut ?? 0;
+                    const mouthFunnel = blendDebug?.mouthFunnel ?? 0;
+                    const mouthSmile = blendDebug?.mouthSmile ?? 0;
+                    const jawOpen = blendDebug?.jawOpen ?? 0;
+                    const tongueProxy =
+                      tongueScore >= 0.2 ||
+                      (nextLabel === "SCREAM" &&
+                        jawOpen >= 0.35 &&
+                        mouthFunnel >= 0.01 &&
+                        mouthSmile <= 0.45);
                     const thresholds: ExpressionThresholds = {
                       tongueOut: 0.5,
                       mouthOpenScream: 0.2,
@@ -405,6 +485,9 @@ function App() {
                       eyeOpenSquint: 0.5,
                     };
                     nextLabel = classifyExpression(smoothSignals, thresholds);
+                    if (tongueProxy) {
+                      nextLabel = "FREAKY";
+                    }
                     toothySmileRef.current =
                       (blendDebug?.mouthUpperUp ?? 0) > 0.25 ||
                       (blendDebug?.jawOpen ?? 0) > 0.15;
@@ -445,6 +528,34 @@ function App() {
                       smoothSignals.mouthOpen >
                       extremes.min.mouthOpen +
                         (extremes.max.mouthOpen - extremes.min.mouthOpen) * 0.6;
+                  }
+
+                  if (landmarkSignals && video) {
+                    if (!tongueCanvasRef.current) {
+                      tongueCanvasRef.current =
+                        document.createElement("canvas");
+                    }
+                    const tongueScore = getTongueConfidence(
+                      video,
+                      result.faceLandmarks?.[0] as FaceLandmark[],
+                      tongueCanvasRef.current
+                    );
+                    setTongueConfidence(tongueScore);
+                    if (
+                      typeof tongueScore === "number" &&
+                      tongueScore >= 0.25 &&
+                      landmarkSignals.mouthOpen > 0.1
+                    ) {
+                      tongueHoldUntilRef.current = now + 700;
+                    }
+                    if (
+                      tongueHoldUntilRef.current > now &&
+                      landmarkSignals.mouthOpen > 0.08
+                    ) {
+                      nextLabel = "FREAKY";
+                    }
+                  } else {
+                    setTongueConfidence(null);
                   }
 
                   if (!useBlendshapes) {
@@ -489,13 +600,13 @@ function App() {
                     }
                   }
 
-                  if (debug) {
-                    setExpressionLabel(nextLabel);
-                  }
-                } else if (debug) {
+                  setRawExpressionLabel(nextLabel);
+                } else {
                   setSignals(null);
                   setExpressionLabel("NEUTRAL");
+                  setRawExpressionLabel("NEUTRAL");
                   setBlendshapeDebug(null);
+                  setTongueConfidence(null);
                 }
 
                 const stableLabel = stabilizer.update(nextLabel, now);
@@ -504,9 +615,7 @@ function App() {
                   nextKey = "grin";
                 }
                 setSelectedKey((prev) => (prev === nextKey ? prev : nextKey));
-                if (debug) {
-                  setExpressionLabel(stableLabel);
-                }
+                setExpressionLabel(stableLabel);
               },
             });
 
@@ -575,7 +684,7 @@ function App() {
         ) : null}
         {debug ? (
           <div>
-            Label: {expressionLabel}
+            Label: {expressionLabel} (raw {rawExpressionLabel})
             {signals
               ? ` | mouthOpen=${signals.mouthOpen.toFixed(3)} smile=${signals.smile.toFixed(
                   3
@@ -599,7 +708,12 @@ function App() {
                   3
                 )} tongueOut=${blendshapeDebug.tongueOut.toFixed(
                   3
+                )} funnel=${blendshapeDebug.mouthFunnel.toFixed(
+                  3
                 )} eyeSquint=${blendshapeDebug.eyeSquint.toFixed(3)}`
+              : ""}
+            {tongueConfidence !== null
+              ? ` | tongueConf=${tongueConfidence.toFixed(3)}`
               : ""}
           </div>
         ) : null}
