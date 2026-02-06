@@ -76,10 +76,15 @@ function getTongueConfidence(
     const r = data[i];
     const g = data[i + 1];
     const b = data[i + 2];
+    const brightness = r + g + b;
     total += 1;
+    if (brightness < 90) continue;
     const redDominant =
-      (r > 55 && r > g + 6 && r > b + 6) ||
-      (r > g * 1.08 && r > b * 1.08 && r > 50);
+      r > 85 &&
+      r > g + 25 &&
+      r > b + 25 &&
+      r / (g + b + 1) > 0.9 &&
+      Math.max(g, b) < 140;
     if (redDominant) {
       redCount += 1;
     }
@@ -483,20 +488,7 @@ function App() {
                       smoothSignals,
                       thresholds
                     );
-                    const tongueProxy =
-                      tongueScore >= 0.2 ||
-                      (rawLabel === "SCREAM" &&
-                        jawOpen >= 0.35 &&
-                        mouthFunnel >= 0.01 &&
-                        mouthSmile <= 0.45);
                     nextLabel = rawLabel;
-                    if (tongueProxy && tongueConfidence !== null) {
-                      const strongTongue =
-                        tongueConfidence >= 0.55 && mouthFunnel >= 0.08;
-                      if (strongTongue) {
-                        nextLabel = "FREAKY";
-                      }
-                    }
                     toothySmileRef.current =
                       (blendDebug?.mouthUpperUp ?? 0) > 0.25 ||
                       (blendDebug?.jawOpen ?? 0) > 0.15;
@@ -544,23 +536,25 @@ function App() {
                       tongueCanvasRef.current =
                         document.createElement("canvas");
                     }
-                    const tongueScore = getTongueConfidence(
-                      video,
-                      result.faceLandmarks?.[0] as FaceLandmark[],
-                      tongueCanvasRef.current
-                    );
+                    const tongueScore =
+                      landmarkSignals.mouthOpen > 0.08
+                        ? getTongueConfidence(
+                            video,
+                            result.faceLandmarks?.[0] as FaceLandmark[],
+                            tongueCanvasRef.current
+                          )
+                        : 0;
                     setTongueConfidence(tongueScore);
                     if (
                       typeof tongueScore === "number" &&
-                      tongueScore >= 0.2 &&
-                      landmarkSignals.mouthOpen > 0.08 &&
-                      tongueScore >= 0.35
+                      tongueScore >= 0.45 &&
+                      landmarkSignals.mouthOpen > 0.12
                     ) {
                       tongueHoldUntilRef.current = now + 700;
                     }
                     if (
                       tongueHoldUntilRef.current > now &&
-                      landmarkSignals.mouthOpen > 0.08
+                      landmarkSignals.mouthOpen > 0.1
                     ) {
                       nextLabel = "FREAKY";
                     }
