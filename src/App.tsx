@@ -45,9 +45,9 @@ function getTongueConfidence(
   const mouthHeight = Math.max(bottom - top, 1);
 
   const sampleWidth = Math.max(6, Math.floor(mouthWidth * 0.5));
-  const sampleHeight = Math.max(4, Math.floor(mouthHeight * 0.6));
+  const sampleHeight = Math.max(4, Math.floor(mouthHeight * 0.9));
   const centerX = (left + right) / 2;
-  const centerY = (top + bottom) / 2 + mouthHeight * 0.1;
+  const centerY = bottom + mouthHeight * 0.15;
   const sampleX = Math.max(0, Math.floor(centerX - sampleWidth / 2));
   const sampleY = Math.max(0, Math.floor(centerY - sampleHeight / 2));
   const clampedWidth = Math.min(sampleWidth, width - sampleX);
@@ -78,7 +78,8 @@ function getTongueConfidence(
     const b = data[i + 2];
     total += 1;
     const redDominant =
-      r > 50 && r > g + 10 && r > b + 10 && r - (g + b) / 2 > 8;
+      (r > 55 && r > g + 6 && r > b + 6) ||
+      (r > g * 1.08 && r > b * 1.08 && r > 50);
     if (redDominant) {
       redCount += 1;
     }
@@ -543,8 +544,8 @@ function App() {
                     setTongueConfidence(tongueScore);
                     if (
                       typeof tongueScore === "number" &&
-                      tongueScore >= 0.25 &&
-                      landmarkSignals.mouthOpen > 0.1
+                      tongueScore >= 0.2 &&
+                      landmarkSignals.mouthOpen > 0.08
                     ) {
                       tongueHoldUntilRef.current = now + 700;
                     }
@@ -714,7 +715,7 @@ function App() {
               : ""}
             {tongueConfidence !== null
               ? ` | tongueConf=${tongueConfidence.toFixed(3)}`
-              : ""}
+              : " | tongueConf=n/a"}
           </div>
         ) : null}
       </div>
