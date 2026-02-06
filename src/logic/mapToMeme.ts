@@ -2,6 +2,8 @@ import type { ExpressionLabel } from "./expression";
 
 export function mapExpressionToMeme(label: ExpressionLabel): string {
   switch (label) {
+    case "FREAKY":
+      return "freaky";
     case "SCREAM":
       return "scream";
     case "SMILE":

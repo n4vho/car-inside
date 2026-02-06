@@ -12,6 +12,7 @@ export const MEMES: Record<string, MemeAsset> = {
   neutral: { key: "neutral", type: "image", src: "/memes/neutral.jpeg" },
   smile: { key: "smile", type: "image", src: "/memes/smile.jpg" },
   grin: { key: "grin", type: "image", src: "/memes/grin.png" },
+  freaky: { key: "freaky", type: "image", src: "/memes/freaky.png" },
   scream: { key: "scream", type: "image", src: "/memes/scream.png" },
   judging: { key: "judging", type: "image", src: "/memes/judging.jpg" },
   tilt_left: { key: "tilt_left", type: "image", src: "/memes/tilt_left.jpg" },

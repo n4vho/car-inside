@@ -1,13 +1,20 @@
-export type ExpressionLabel = "NEUTRAL" | "SMILE" | "SCREAM" | "SQUINT";
+export type ExpressionLabel =
+  | "NEUTRAL"
+  | "SMILE"
+  | "SCREAM"
+  | "SQUINT"
+  | "FREAKY";
 
 export type ExpressionSignals = {
   faceW: number;
   mouthOpen: number;
   smile: number;
   eyeOpen: number;
+  tongueOut?: number;
 };
 
 export type ExpressionThresholds = {
+  tongueOut?: number;
   mouthOpenScream: number;
   smile: number;
   mouthOpenSmileMax: number;
@@ -56,6 +63,7 @@ export function getBlendshapeDebug(
   mouthFunnel: number;
   mouthSmile: number;
   mouthUpperUp: number;
+  tongueOut: number;
   eyeSquint: number;
 } | null {
   if (!categories || categories.length === 0) return null;
@@ -66,6 +74,7 @@ export function getBlendshapeDebug(
   const mouthSmileRight = getScore(categories, "mouthSmileRight") ?? 0;
   const mouthUpperUpLeft = getScore(categories, "mouthUpperUpLeft") ?? 0;
   const mouthUpperUpRight = getScore(categories, "mouthUpperUpRight") ?? 0;
+  const tongueOut = getScore(categories, "tongueOut") ?? 0;
   const eyeSquintLeft = getScore(categories, "eyeSquintLeft") ?? 0;
   const eyeSquintRight = getScore(categories, "eyeSquintRight") ?? 0;
 
@@ -74,6 +83,7 @@ export function getBlendshapeDebug(
     mouthFunnel,
     mouthSmile: (mouthSmileLeft + mouthSmileRight) / 2,
     mouthUpperUp: (mouthUpperUpLeft + mouthUpperUpRight) / 2,
+    tongueOut,
     eyeSquint: (eyeSquintLeft + eyeSquintRight) / 2,
   };
 }
@@ -89,6 +99,7 @@ export function computeBlendshapeSignals(
   const mouthSmileRight = getScore(categories, "mouthSmileRight") ?? 0;
   const eyeSquintLeft = getScore(categories, "eyeSquintLeft") ?? 0;
   const eyeSquintRight = getScore(categories, "eyeSquintRight") ?? 0;
+  const tongueOut = getScore(categories, "tongueOut") ?? 0;
 
   const mouthOpen = Math.min(1, jawOpen + mouthFunnel * 0.5);
   const smile = Math.min(1, (mouthSmileLeft + mouthSmileRight) / 2);
@@ -99,6 +110,7 @@ export function computeBlendshapeSignals(
     mouthOpen,
     smile,
     eyeOpen,
+    tongueOut,
   };
 }
 
@@ -142,12 +154,19 @@ export function computeSignals(landmarks: Landmark[]): ExpressionSignals {
 export function classifyExpression(
   signals: ExpressionSignals,
   thresholds: ExpressionThresholds = {
+    tongueOut: 0.5,
     mouthOpenScream: 0.28,
     smile: 0.62,
     mouthOpenSmileMax: 0.18,
     eyeOpenSquint: 0.12,
   }
 ): ExpressionLabel {
+  if (
+    typeof thresholds.tongueOut === "number" &&
+    (signals.tongueOut ?? 0) >= thresholds.tongueOut
+  ) {
+    return "FREAKY";
+  }
   const screamTriggered =
     thresholds.mouthOpenScream < 0
       ? signals.mouthOpen < thresholds.mouthOpenScream

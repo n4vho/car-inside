@@ -70,6 +70,7 @@ function App() {
     mouthFunnel: number;
     mouthSmile: number;
     mouthUpperUp: number;
+    tongueOut: number;
     eyeSquint: number;
   } | null>(null);
   const [calibrated, setCalibrated] = useState(false);
@@ -174,7 +175,20 @@ function App() {
             fontSize: 18,
           }}
         >
-          Press Start to begin
+          <button
+            onClick={handleStart}
+            style={{
+              padding: "10px 16px",
+              fontSize: 16,
+              borderRadius: 6,
+              border: "1px solid #555",
+              background: "#111",
+              color: "#fff",
+              cursor: "pointer",
+            }}
+          >
+            Start
+          </button>
         </div>
       )}
 
@@ -384,6 +398,7 @@ function App() {
 
                   if (useBlendshapes) {
                     const thresholds: ExpressionThresholds = {
+                      tongueOut: 0.5,
                       mouthOpenScream: 0.2,
                       smile: 0.2,
                       mouthOpenSmileMax: 0.25,
@@ -522,9 +537,11 @@ function App() {
           borderRadius: 6,
         }}
       >
-        <button onClick={handleStart} disabled={status === "Loading"}>
-          Start
-        </button>
+        {!started ? (
+          <button onClick={handleStart} disabled={status === "Loading"}>
+            Start
+          </button>
+        ) : null}
         <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <input
             type="checkbox"
@@ -580,32 +597,29 @@ function App() {
                   3
                 )} upperUp=${blendshapeDebug.mouthUpperUp.toFixed(
                   3
+                )} tongueOut=${blendshapeDebug.tongueOut.toFixed(
+                  3
                 )} eyeSquint=${blendshapeDebug.eyeSquint.toFixed(3)}`
               : ""}
           </div>
         ) : null}
       </div>
 
-      <div
-        style={{
-          position: "fixed",
-          right: 16,
-          top: 16,
-          display: "flex",
-          gap: 8,
-          padding: "10px 12px",
-          background: "rgba(0, 0, 0, 0.6)",
-          color: "#fff",
-          fontSize: 14,
-          borderRadius: 6,
-        }}
-      >
-        {["neutral", "smile", "scream", "judging"].map((key) => (
-          <button key={key} onClick={() => setSelectedKey(key)}>
-            {key}
-          </button>
-        ))}
-        {debug ? (
+      {debug ? (
+        <div
+          style={{
+            position: "fixed",
+            right: 16,
+            top: 16,
+            display: "flex",
+            gap: 8,
+            padding: "10px 12px",
+            background: "rgba(0, 0, 0, 0.6)",
+            color: "#fff",
+            fontSize: 14,
+            borderRadius: 6,
+          }}
+        >
           <button
             onClick={() => {
               const extremes = extremesRef.current;
@@ -616,8 +630,8 @@ function App() {
           >
             Log extremes
           </button>
-        ) : null}
-      </div>
+        </div>
+      ) : null}
       {debug && extremesDump ? (
         <pre
           style={{
