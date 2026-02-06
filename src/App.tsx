@@ -472,12 +472,6 @@ function App() {
                     const mouthFunnel = blendDebug?.mouthFunnel ?? 0;
                     const mouthSmile = blendDebug?.mouthSmile ?? 0;
                     const jawOpen = blendDebug?.jawOpen ?? 0;
-                    const tongueProxy =
-                      tongueScore >= 0.2 ||
-                      (nextLabel === "SCREAM" &&
-                        jawOpen >= 0.35 &&
-                        mouthFunnel >= 0.01 &&
-                        mouthSmile <= 0.45);
                     const thresholds: ExpressionThresholds = {
                       tongueOut: 0.5,
                       mouthOpenScream: 0.2,
@@ -485,7 +479,17 @@ function App() {
                       mouthOpenSmileMax: 0.25,
                       eyeOpenSquint: 0.5,
                     };
-                    nextLabel = classifyExpression(smoothSignals, thresholds);
+                    const rawLabel = classifyExpression(
+                      smoothSignals,
+                      thresholds
+                    );
+                    const tongueProxy =
+                      tongueScore >= 0.2 ||
+                      (rawLabel === "SCREAM" &&
+                        jawOpen >= 0.35 &&
+                        mouthFunnel >= 0.01 &&
+                        mouthSmile <= 0.45);
+                    nextLabel = rawLabel;
                     if (tongueProxy) {
                       nextLabel = "FREAKY";
                     }
