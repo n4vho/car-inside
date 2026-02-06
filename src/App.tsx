@@ -543,7 +543,7 @@ function App() {
                     setTongueConfidence(tongueScore);
                     if (
                       typeof tongueScore === "number" &&
-                      tongueScore >= 0.45 &&
+                      tongueScore >= 0.12 &&
                       landmarkSignals.mouthOpen > 0.12
                     ) {
                       tongueHoldUntilRef.current = now + 700;
