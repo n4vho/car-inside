@@ -490,8 +490,12 @@ function App() {
                         mouthFunnel >= 0.01 &&
                         mouthSmile <= 0.45);
                     nextLabel = rawLabel;
-                    if (tongueProxy) {
-                      nextLabel = "FREAKY";
+                    if (tongueProxy && tongueConfidence !== null) {
+                      const strongTongue =
+                        tongueConfidence >= 0.55 && mouthFunnel >= 0.08;
+                      if (strongTongue) {
+                        nextLabel = "FREAKY";
+                      }
                     }
                     toothySmileRef.current =
                       (blendDebug?.mouthUpperUp ?? 0) > 0.25 ||
@@ -549,7 +553,8 @@ function App() {
                     if (
                       typeof tongueScore === "number" &&
                       tongueScore >= 0.2 &&
-                      landmarkSignals.mouthOpen > 0.08
+                      landmarkSignals.mouthOpen > 0.08 &&
+                      tongueScore >= 0.35
                     ) {
                       tongueHoldUntilRef.current = now + 700;
                     }
