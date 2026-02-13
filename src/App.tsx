@@ -131,6 +131,8 @@ function App() {
   const [debug, setDebug] = useState(false);
   const [sensitivity, setSensitivity] = useState(50);
   const [selectedKey, setSelectedKey] = useState("neutral");
+  const [discoveredKeys, setDiscoveredKeys] = useState<string[]>([]);
+  const [showGallery, setShowGallery] = useState(false);
   const [faceDetected, setFaceDetected] = useState(false);
   const [expressionLabel, setExpressionLabel] =
     useState<ExpressionLabel>("NEUTRAL");
@@ -214,6 +216,15 @@ function App() {
 
   const currentMemeAsset = useMemo(() => getMeme(selectedKey), [selectedKey]);
 
+  const allMemes = useMemo(() => listMemes(), []);
+  const discoverableMemes = useMemo(
+    () => allMemes.filter((meme) => meme.key !== "neutral"),
+    [allMemes]
+  );
+
+  const discoveredCount = discoveredKeys.length;
+  const totalDiscoverable = discoverableMemes.length;
+
   const handleStart = async () => {
     setStatus("Loading");
     await preloadAllMemes(listMemes());
@@ -269,6 +280,110 @@ function App() {
           </button>
         </div>
       )}
+
+      {showGallery && discoveredKeys.length > 0 ? (
+        <div
+          style={{
+            position: "fixed",
+            right: 16,
+            bottom: 16,
+            maxWidth: 320,
+            maxHeight: 260,
+            overflow: "auto",
+            padding: "10px 12px",
+            background: "rgba(0, 0, 0, 0.75)",
+            color: "#fff",
+            fontSize: 12,
+            borderRadius: 8,
+            boxShadow: "0 4px 16px rgba(0, 0, 0, 0.5)",
+            zIndex: 20,
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              marginBottom: 8,
+              gap: 12,
+            }}
+          >
+            <div style={{ fontSize: 13, fontWeight: 600 }}>
+              Discovered cats ({discoveredCount}/{totalDiscoverable})
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowGallery(false)}
+              style={{
+                padding: "2px 6px",
+                fontSize: 11,
+                borderRadius: 4,
+                border: "1px solid #555",
+                background: "transparent",
+                color: "#fff",
+                cursor: "pointer",
+              }}
+            >
+              Close
+            </button>
+          </div>
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fill, minmax(72px, 1fr))",
+              gap: 8,
+            }}
+          >
+            {discoveredKeys.map((key) => {
+              const meme = getMeme(key);
+              const isActive = key === selectedKey;
+              return (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => setSelectedKey(key)}
+                  style={{
+                    borderRadius: 6,
+                    padding: 0,
+                    border: isActive ? "2px solid #ffcc66" : "1px solid #444",
+                    background: "#000",
+                    overflow: "hidden",
+                    cursor: "pointer",
+                  }}
+                  title={key}
+                >
+                  {meme.type === "image" ? (
+                    <img
+                      src={meme.src}
+                      alt={key}
+                      style={{
+                        display: "block",
+                        width: "100%",
+                        height: "100%",
+                        objectFit: "cover",
+                      }}
+                    />
+                  ) : (
+                    <video
+                      src={meme.src}
+                      muted
+                      loop
+                      playsInline
+                      autoPlay
+                      style={{
+                        display: "block",
+                        width: "100%",
+                        height: "100%",
+                        objectFit: "cover",
+                      }}
+                    />
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      ) : null}
 
       <HiddenCamera
         started={started}
@@ -614,7 +729,15 @@ function App() {
                 if (stableLabel === "SMILE" && toothySmileRef.current) {
                   nextKey = "grin";
                 }
-                setSelectedKey((prev) => (prev === nextKey ? prev : nextKey));
+                setSelectedKey((prev) => {
+                  const next = prev === nextKey ? prev : nextKey;
+                  if (next !== "neutral") {
+                    setDiscoveredKeys((prevKeys) =>
+                      prevKeys.includes(next) ? prevKeys : [...prevKeys, next]
+                    );
+                  }
+                  return next;
+                });
                 setExpressionLabel(stableLabel);
               },
             });
@@ -659,6 +782,28 @@ function App() {
           />
           Debug
         </label>
+        <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+          <div>
+            Discovered cats: {discoveredCount} / {totalDiscoverable}
+          </div>
+          <button
+            type="button"
+            onClick={() => setShowGallery((open) => !open)}
+            disabled={totalDiscoverable === 0}
+            style={{
+              padding: "4px 8px",
+              fontSize: 13,
+              borderRadius: 4,
+              border: "1px solid #555",
+              background: "#111",
+              color: "#fff",
+              cursor: "pointer",
+              opacity: totalDiscoverable === 0 ? 0.6 : 1,
+            }}
+          >
+            {showGallery ? "Hide gallery" : "Open gallery"}
+          </button>
+        </div>
         <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
           Sensitivity
           <input
