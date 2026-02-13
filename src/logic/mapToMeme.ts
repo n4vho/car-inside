@@ -10,6 +10,8 @@ export function mapExpressionToMeme(label: ExpressionLabel): string {
       return "smile";
     case "SQUINT":
       return "judging";
+    case "EYEBROW":
+      return "raise_eyebrow";
     case "NEUTRAL":
     default:
       return "neutral";

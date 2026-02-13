@@ -15,6 +15,11 @@ export const MEMES: Record<string, MemeAsset> = {
   freaky: { key: "freaky", type: "image", src: "/memes/freaky.png" },
   scream: { key: "scream", type: "image", src: "/memes/scream.png" },
   judging: { key: "judging", type: "image", src: "/memes/judging.jpg" },
+  raise_eyebrow: {
+    key: "raise_eyebrow",
+    type: "image",
+    src: "/memes/raise_eyebrow.png",
+  },
   tilt_left: { key: "tilt_left", type: "image", src: "/memes/tilt_left.jpg" },
   tilt_right: { key: "tilt_right", type: "image", src: "/memes/tilt_right.jpeg" },
   look_left: { key: "look_left", type: "image", src: "/memes/look_left.png" },

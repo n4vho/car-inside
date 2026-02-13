@@ -3,7 +3,8 @@ export type ExpressionLabel =
   | "SMILE"
   | "SCREAM"
   | "SQUINT"
-  | "FREAKY";
+  | "FREAKY"
+  | "EYEBROW";
 
 export type ExpressionSignals = {
   faceW: number;
@@ -11,6 +12,11 @@ export type ExpressionSignals = {
   smile: number;
   eyeOpen: number;
   tongueOut?: number;
+  /**
+   * How asymmetric the brows are (one raised vs the other).
+   * Only populated when blendshape data is available.
+   */
+  browAsym?: number;
 };
 
 export type ExpressionThresholds = {
@@ -19,6 +25,10 @@ export type ExpressionThresholds = {
   smile: number;
   mouthOpenSmileMax: number;
   eyeOpenSquint: number;
+  /**
+   * Minimum brow asymmetry required to consider a one-eyebrow raise.
+   */
+  browAsym?: number;
 };
 
 type BlendshapeCategory = { categoryName: string; score: number };
@@ -100,10 +110,13 @@ export function computeBlendshapeSignals(
   const eyeSquintLeft = getScore(categories, "eyeSquintLeft") ?? 0;
   const eyeSquintRight = getScore(categories, "eyeSquintRight") ?? 0;
   const tongueOut = getScore(categories, "tongueOut") ?? 0;
+   const browOuterUpLeft = getScore(categories, "browOuterUpLeft") ?? 0;
+   const browOuterUpRight = getScore(categories, "browOuterUpRight") ?? 0;
 
   const mouthOpen = Math.min(1, jawOpen + mouthFunnel * 0.5);
   const smile = Math.min(1, (mouthSmileLeft + mouthSmileRight) / 2);
   const eyeOpen = Math.max(0, 1 - (eyeSquintLeft + eyeSquintRight) / 2);
+  const browAsym = Math.abs(browOuterUpLeft - browOuterUpRight);
 
   return {
     faceW: 1,
@@ -111,6 +124,7 @@ export function computeBlendshapeSignals(
     smile,
     eyeOpen,
     tongueOut,
+    browAsym,
   };
 }
 
@@ -159,6 +173,7 @@ export function classifyExpression(
     smile: 0.62,
     mouthOpenSmileMax: 0.18,
     eyeOpenSquint: 0.12,
+    browAsym: 0.25,
   }
 ): ExpressionLabel {
   if (
@@ -172,6 +187,14 @@ export function classifyExpression(
       ? signals.mouthOpen < thresholds.mouthOpenScream
       : signals.mouthOpen > thresholds.mouthOpenScream;
   if (screamTriggered) return "SCREAM";
+
+  // One-eyebrow raise (🤨): noticeable brow asymmetry, relatively neutral mouth.
+  const eyebrowTriggered =
+    typeof thresholds.browAsym === "number" &&
+    (signals.browAsym ?? 0) >= thresholds.browAsym &&
+    signals.mouthOpen < 0.18 &&
+    signals.smile < 0.55;
+  if (eyebrowTriggered) return "EYEBROW";
 
   const smileTriggered =
     thresholds.smile < 0
